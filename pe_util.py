@@ -10,4 +10,14 @@ def load(uc, pe):
     uc.mem_map(image_base, size)
     print("Writing PE, len: {} bytes".format(hex(len(pe_mem))))
     uc.mem_write(image_base, bytes(pe_mem))
-    
+
+
+def in_initialized_sec(addr, sec, image_base):
+    sec_addr = image_base + sec.VirtualAddress
+    return sec_addr <= addr < sec_addr + sec.SizeOfRawData
+
+def in_initialized(addr, pe):
+    for sec in pe.sections:
+        if in_initialized_sec(addr, sec, pe.OPTIONAL_HEADER.ImageBase):
+            return True
+    return False
