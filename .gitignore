@@ -1,6 +1,9 @@
 # Memory dumps from the emulator
 mem_dump*
 
+# Emulated binaries
+bin/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
