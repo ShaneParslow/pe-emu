@@ -7,19 +7,12 @@ import util
 from unicorn import *
 from unicorn.x86_const import *
 
-current_pe = None
-stack_low = None
-stack_size = None
-trace_next_instr = False
-initialized_addresses = []
-
-def mem_invalid(uc, access, address, size, value, user_data):
+def mem_invalid(uc, access, address, size, value, env):
     print("\n========================================================")
     print("Memory access at {} failed".format(hex(address)))
     util.print_context(uc)
 
-def trace(uc, address, size, user_data):
-    global trace_next_instr
+def trace(uc, address, size, env):
     instr = uc.mem_read(address, size)
     opcode = int.from_bytes(instr[0:2], 'little')
     # opcode: 0xff mod/rm: xx010xxx
@@ -33,19 +26,18 @@ def trace(uc, address, size, user_data):
         if (opcode & call[0] == call[1]):
             print(">>> {}: CALL ".format(hex(address)), end='')
             # Print the address of the next instruction when it runs
-            trace_next_instr = True
+            env.trace_next_instr = True
     for jump in jumps:
         if (opcode & jump[0] == jump[1]):
             print(">>> {}: JMP ".format(hex(address)), end='')
-            trace_next_instr = True
+            env.trace_next_instr = True
 
-def trace_next(uc, address, size, user_data):
-    global trace_next_instr
-    if trace_next_instr == True:
-        trace_next_instr = False
+def trace_next(uc, address, size, env):
+    if env.trace_next_instr == True:
+        env.trace_next_instr = False
         print("to {}".format(hex(address)))
 
-def interesting(uc, address, size, user_data):
+def interesting(uc, address, size, env):
     interesting = [(b'\x0f\x31', 'rdstc'),
                    (b'\x0f\xa2', 'cpuid')]
     instr = uc.mem_read(address, size)
@@ -55,7 +47,7 @@ def interesting(uc, address, size, user_data):
             print(">>> {}: Interesting instruction: {}!".format(hex(address), i[1]))
 
 # TODO: Can be consolidated into trace
-def ret(uc, address, size, user_data):
+def ret(uc, address, size, env):
     instr = uc.mem_read(address, 1)
     opcode = int.from_bytes(instr, 'little')
     if opcode == 0xc3:
@@ -64,11 +56,19 @@ def ret(uc, address, size, user_data):
         # Can use trace_next for this
         print(">>> {}: RET to {}".format(hex(address), hex(ret_addr)))
 
-def uninitialized_memory_read(uc, access, address, size, value, user_data):
-    global current_pe
+def uninitialized_memory_read(uc, access, address, size, value, env):
+    # Was this address initialized with data from the binary?
+    initially_initialized_segment_address = pe_util.in_initialized(address, env.pe)
+
+    # Is this address in the stack?
     rsp = uc.reg_read(UC_X86_REG_RSP)
-    # Is this address outside of initialized segment boundaries? Are we sure it isn't in the stack? Are we sure a previous instruction didn't write to it?
-    if pe_util.in_initialized(address, current_pe) != True and not rsp <= address < stack_low + stack_size and address not in initialized_addresses:
+    in_stack = rsp <= address < env.stack_low_addr + env.stack_size - env.initial_rsp
+
+    # Was this address written to previously?
+    newly_initialized_address = address in env.initialized_addresses
+
+    # If none of the above, the program is reading from uninitialized memory!
+    if not initially_initialized_segment_address and not in_stack and not newly_initialized_address:
         rip = uc.reg_read(UC_X86_REG_RIP)
         #import code
         #code.interact(local=dict(globals(), **locals()))
@@ -79,8 +79,18 @@ def uninitialized_memory_read(uc, access, address, size, value, user_data):
 
 # Add these addresses to a list of now-initialized addresses
 # TODO: implement size
-def uninitialized_memory_write(uc, access, address, size, value, user_data):
-    global current_pe
+# TODO: detect writes to invalid addresses after automatic mapping
+def uninitialized_memory_write(uc, access, address, size, value, env):
+    # Was this address initialized with data from the binary?
+    initially_initialized_segment_address = pe_util.in_initialized(address, env.pe)
+
+    # Is this address in the stack?
     rsp = uc.reg_read(UC_X86_REG_RSP)
-    if pe_util.in_initialized(address, current_pe) != True and not rsp <= address < stack_low + stack_size:
-        initialized_addresses.append(address)
+    in_stack = rsp <= address < env.stack_low_addr + env.stack_size - env.initial_rsp
+
+    # Was this address written to previously?
+    newly_initialized_address = address in env.initialized_addresses
+
+    # If none of the above, the program is writing to previously-uninialized memory. This address is now valid to read from.
+    if not initially_initialized_segment_address and not in_stack and not newly_initialized_address:
+        env.initialized_addresses.append(address)
