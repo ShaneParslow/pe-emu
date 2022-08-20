@@ -9,11 +9,12 @@ from unicorn.x86_const import *
 
 def mem_invalid(uc, access, address, size, value, env):
     print("\n========================================================")
-    print("Memory access at {} failed".format(hex(address)))
+    print("ERROR: Memory access at {} failed".format(hex(address)))
     util.print_context(uc)
 
 def trace(uc, address, size, env):
     instr = uc.mem_read(address, size)
+    # HACK: Only using first 2 bytes of instruction (usually opcode + modrm)
     opcode = int.from_bytes(instr[0:2], 'little')
     # opcode: 0xff mod/rm: xx010xxx
     # mask: 0xff 00111000 = 0x3 0x8
@@ -22,6 +23,10 @@ def trace(uc, address, size, env):
     calls = [(0x38ff, 0x10ff), # ff /2 call
              (0x00ff, 0x00e8)] # e8 call
     jumps = [(0x38ff, 0x20ff)] # ff /3 jump
+    rets =  [(0x00ff, 0x00c3),
+             (0x00ff, 0x00c2),
+             (0x00ff, 0x00cb),
+             (0x00ff, 0x00ca)]
     for call in calls:
         if (opcode & call[0] == call[1]):
             print(">>> {}: CALL ".format(hex(address)), end='')
@@ -30,6 +35,10 @@ def trace(uc, address, size, env):
     for jump in jumps:
         if (opcode & jump[0] == jump[1]):
             print(">>> {}: JMP ".format(hex(address)), end='')
+            env.trace_next_instr = True
+    for ret in rets:
+        if opcode & ret[0] == ret[1]:
+            print(">>> {}: RET ".format(hex(address)), end='')
             env.trace_next_instr = True
 
 def trace_next(uc, address, size, env):
