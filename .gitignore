@@ -1,6 +1,9 @@
 # Memory dumps from the emulator
 mem_dump*
 
+# Run configurations
+.vscode/
+
 # Emulated binaries
 bin/
 
