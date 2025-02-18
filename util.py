@@ -4,33 +4,34 @@
 from unicorn import *
 from unicorn.x86_const import *
 
-def print_context(uc):
+def print_context(env):
+    uc = env.uni
     # There is probably a better way to do this
-    rip = uc.reg_read(UC_X86_REG_RIP)
+    rip = uc.reg_read(env.IP)
     print("--- RIP: {}".format(hex(rip)))
     
-    reg = uc.reg_read(UC_X86_REG_RSP)
+    reg = uc.reg_read(env.SP)
     print("--- RSP: {}".format(hex(reg)))
 
-    reg = uc.reg_read(UC_X86_REG_RBP)
+    reg = uc.reg_read(env.BP)
     print("--- RBP: {}".format(hex(reg)))
 
-    reg = uc.reg_read(UC_X86_REG_RAX)
+    reg = uc.reg_read(env.AX)
     print("--- RAX: {}".format(hex(reg)))
     
-    reg = uc.reg_read(UC_X86_REG_RBX)
+    reg = uc.reg_read(env.BX)
     print("--- RBX: {}".format(hex(reg)))
     
-    reg = uc.reg_read(UC_X86_REG_RCX)
+    reg = uc.reg_read(env.CX)
     print("--- RCX: {}".format(hex(reg)))
     
-    reg = uc.reg_read(UC_X86_REG_RDX)
+    reg = uc.reg_read(env.DX)
     print("--- RDX: {}".format(hex(reg)))
 
-    reg = uc.reg_read(UC_X86_REG_RSI)
+    reg = uc.reg_read(env.SI)
     print("--- RSI: {}".format(hex(reg)))
 
-    reg = uc.reg_read(UC_X86_REG_RDI)
+    reg = uc.reg_read(env.DI)
     print("--- RDI: {}".format(hex(reg)))
 
     try:
@@ -46,9 +47,10 @@ def dump_memory(uc, start, size, filename):
     with open(filename, "wb") as f:
         f.write(mem)
 
-def dump_stack(uc, stack_high):
-    rsp = uc.reg_read(UC_X86_REG_RSP)
+def dump_stack(env):
+    rsp = uc.reg_read(env.SP)
     print("Dumping stack to 'mem_dump_stack', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
+    stack_high = env.stack_low_addr + env.stack_size
     dump_memory(uc, rsp, stack_high - rsp, "mem_dump_stack")
 
 def dump_segment(uc, sec, image_base):
@@ -57,6 +59,7 @@ def dump_segment(uc, sec, image_base):
     print("Dumping section {} to 'mem_dump{}'".format(sec_name, sec_name))
     dump_memory(uc, abs_sec_addr, sec.Misc_VirtualSize, "mem_dump{}".format(sec_name))
 
-def dump_all_segments(uc, pe):
+def dump_all_segments(env):
+    pe = env.pe
     for sec in pe.sections:
-        dump_segment(uc, sec, pe.OPTIONAL_HEADER.ImageBase)
+        dump_segment(env.uni, sec, pe.OPTIONAL_HEADER.ImageBase)
