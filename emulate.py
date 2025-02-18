@@ -62,6 +62,7 @@ def main():
     except UcError as e:
         print("========================================================")
         print("ERROR: %s" % e)
+        # TODO: specific dump directory + reassemble to PE or elf
         util.dump_all_segments(env.uni, env.pe)
         util.dump_stack(env.uni, env.stack_low_addr + env.stack_size)
 
