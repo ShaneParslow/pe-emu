@@ -48,9 +48,9 @@ def dump_memory(uc, start, size, filename):
         f.write(mem)
 
 def dump_stack(env):
-    rsp = uc.reg_read(env.SP)
-    print("Dumping stack to 'mem_dump_stack', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
+    rsp = env.uc.reg_read(env.SP)
     stack_high = env.stack_low_addr + env.stack_size
+    print("Dumping stack to 'mem_dump_stack', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
     dump_memory(uc, rsp, stack_high - rsp, "mem_dump_stack")
 
 def dump_segment(uc, sec, image_base):
