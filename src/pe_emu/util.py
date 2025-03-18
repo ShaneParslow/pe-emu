@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-# Shane Parslow 2022
+import os
 
 from unicorn import *
 from unicorn.x86_const import *
@@ -50,16 +49,28 @@ def dump_memory(uc, start, size, filename):
 def dump_stack(env):
     rsp = env.uni.reg_read(env.SP)
     stack_high = env.stack_low_addr + env.stack_size
-    print("Dumping stack to 'mem_dump_stack', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
-    dump_memory(env.uni, rsp, stack_high - rsp, "mem_dump_stack")
+    print("Dumping stack to 'dumps/stack.bin', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
+    dump_memory(env.uni, rsp, stack_high - rsp, "./dumps/stack.bin")
 
+# TODO: give a sane name to unnamed sections
+# TODO: check if section is different
 def dump_segment(uc, sec, image_base):
     sec_name = sec.Name.decode('utf-8').strip('\x00')
+    file_name = sec_name.strip('.') + ".bin"
     abs_sec_addr = image_base + sec.VirtualAddress
-    print("Dumping section {} to 'mem_dump{}'".format(sec_name, sec_name))
-    dump_memory(uc, abs_sec_addr, sec.Misc_VirtualSize, "mem_dump{}".format(sec_name))
+    print("Dumping section {} to 'dumps/{}'".format(sec_name, file_name))
+    dump_memory(uc, abs_sec_addr, sec.Misc_VirtualSize, "./dumps/" + file_name)
 
 def dump_all_segments(env):
     pe = env.pe
     for sec in pe.sections:
         dump_segment(env.uni, sec, pe.OPTIONAL_HEADER.ImageBase)
+
+def dump_all(env):
+    try:
+        os.mkdir("dumps")
+    except FileExistsError:
+        pass
+    print("Created 'dumps' directory")
+    dump_all_segments(env)
+    dump_stack(env)

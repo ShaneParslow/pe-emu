@@ -21,6 +21,7 @@ try:
 except UcError as e:
     print("========================================================")
     print("ERROR: %s" % e)
+    util.print_context(env)
     # TODO: specific dump directory + reassemble to PE or elf coredump
-    util.dump_all_segments(env)
-    util.dump_stack(env)
+    util.dump_all(env)
+    
