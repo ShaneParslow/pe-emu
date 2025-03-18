@@ -1,18 +1,13 @@
-#!/usr/bin/env python
-# Shane Parslow 2022
-
-import hooks
-import pe_util
-import util
-
-from pefile import *
-import sys
-from capstone import *
-from unicorn import *
+import unicorn
 from unicorn.x86_const import *
+from unicorn.unicorn_const import *
+
+from capstone import *
+
+from . import pe_util
 
 # Various bits of data about the emulation environment
-class emu_env:
+class Emu:
     # Load a PE
     def load(self, pe):
         self.pe = pe
@@ -45,7 +40,7 @@ class emu_env:
         
         ### Contexts
         # Unicorn context
-        self.uni = Uc(UC_ARCH_X86, mode)
+        self.uni = unicorn.Uc(UC_ARCH_X86, mode)
         # Capstone context
         cs_mode = CS_MODE_64 if mode == UC_MODE_64 else CS_MODE_32
         self.cs = Cs(CS_ARCH_X86, cs_mode)
@@ -68,23 +63,3 @@ class emu_env:
         self.uni.reg_write(self.SP, self.initial_rsp)
         print("Allocating {} bytes for stack at {}\n".format(hex(self.stack_size), hex(self.stack_low_addr)))
         self.uni.mem_map(self.stack_low_addr, self.stack_size)
-
-def main():
-    mode = UC_MODE_32 if "-32b" in sys.argv else UC_MODE_64
-    
-    print("Preparing emulation in *{}* mode".format("32-bit mode" if mode == UC_MODE_32 else "64-bit mode"))
-    env = emu_env(mode)
-    env.load(PE(sys.argv[1]))
-
-    entry = env.pe.OPTIONAL_HEADER.ImageBase + env.pe.OPTIONAL_HEADER.AddressOfEntryPoint
-    print("Starting emulation at {}".format(hex(entry)))
-    try:
-        env.uni.emu_start(entry, 0xffffffffff)
-    except UcError as e:
-        print("========================================================")
-        print("ERROR: %s" % e)
-        # TODO: specific dump directory + reassemble to PE or elf
-        util.dump_all_segments(env)
-        util.dump_stack(env)
-
-main()

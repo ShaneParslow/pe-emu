@@ -1,9 +1,3 @@
-#!/usr/bin/python3
-# Shane Parslow 2022
-
-import pe_util
-import util
-
 from unicorn import *
 from unicorn.x86_const import *
 

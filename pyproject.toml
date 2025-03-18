@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "pe-emu"
+dependencies = [
+    "unicorn",
+    "capstone",
+    "pefile",
+]
