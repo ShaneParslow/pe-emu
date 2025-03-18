@@ -1,6 +1,9 @@
 from unicorn import *
 from unicorn.x86_const import *
 
+from . import pe_util
+from . import util
+
 def mem_invalid(uc, access, address, size, value, env):
     print("\n========================================================")
     print("ERROR: Memory access at {} failed".format(hex(address)))
