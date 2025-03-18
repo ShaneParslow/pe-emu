@@ -1,6 +1,5 @@
 # Memory dumps from the emulator
-mem_dump*
-
+dumps/
 # Run configurations
 .vscode/
 
