@@ -8,40 +8,28 @@ def mem_invalid(uc, access, address, size, value, env):
     print("ERROR: Memory access at {} failed".format(hex(address)))
     util.print_context(env)
 
-def trace(uc, address, size, env):
+def pre_analysis(uc, address, size, env):
     instr = uc.mem_read(address, size)
-    # HACK: Only using first 2 bytes of instruction (usually opcode + modrm)
-    opcode = int.from_bytes(instr[0:2], 'little')
-    # opcode: 0xff mod/rm: xx010xxx
-    # mask: 0xff 00111000 = 0x3 0x8
-    # call value: 0xff 00010000 = 0x10
-    # (mask, value)
-    calls = [(0x38ff, 0x10ff), # ff /2 call
-             (0x00ff, 0x00e8)] # e8 call
-    jumps = [(0x38ff, 0x20ff)] # ff /3 jump
-    rets =  [(0x00ff, 0x00c3),
-             (0x00ff, 0x00c2),
-             (0x00ff, 0x00cb),
-             (0x00ff, 0x00ca)]
-    for call in calls:
-        if (opcode & call[0] == call[1]):
-            print(">>> {}: CALL ".format(hex(address)), end='')
-            # Print the address of the next instruction when it runs
-            env.trace_next_instr = True
-    for jump in jumps:
-        if (opcode & jump[0] == jump[1]):
-            print(">>> {}: JMP ".format(hex(address)), end='')
-            env.trace_next_instr = True
-    for ret in rets:
-        if opcode & ret[0] == ret[1]:
-            print(">>> {}: RET ".format(hex(address)), end='')
-            env.trace_next_instr = True
+    env.cur_disasm = next(env.cs.disasm(instr, address))
+    env.cur_mnemonic = env.cur_disasm.mnemonic
+    #print(env.cur_mnemonic)
+
+def trace(uc, address, size, env):
+    # Instruction groups to print info on
+    trace_groups = {CS_GRP_CALL, CS_GRP_JUMP, CS_GRP_RET}
+    # Set intersection
+    if trace_groups & set(env.cur_disasm.groups):
+        # Uppercase and pad mnemonic for output alignment
+        print(">>> {}: {:<3} to ".format(hex(address), env.cur_mnemonic.upper()), end='')
+        # Print the address of the next instruction when it runs
+        env.trace_next_instr = True
 
 def trace_next(uc, address, size, env):
     if env.trace_next_instr == True:
         env.trace_next_instr = False
-        print("to {}".format(hex(address)))
+        print(hex(address))
 
+# TODO: capstone
 def interesting(uc, address, size, env):
     interesting = [(b'\x0f\x31', 'rdstc'),
                    (b'\x0f\xa2', 'cpuid')]
@@ -51,7 +39,8 @@ def interesting(uc, address, size, env):
         if (bytearray(i[0]) == instr[0:2]):
             print(">>> {}: Interesting instruction: {}!".format(hex(address), i[1]))
 
-# TODO: Can be consolidated into trace
+# TODO: Can be consolidated into trace - done
+# TODO 2: verify that trace picks up everything that this does
 def ret(uc, address, size, env):
     instr = uc.mem_read(address, 1)
     opcode = int.from_bytes(instr, 'little')
@@ -60,6 +49,11 @@ def ret(uc, address, size, env):
         ret_addr = int.from_bytes(uc.mem_read(rsp, 0x8), 'little')
         # Can use trace_next for this
         print(">>> {}: RET to {}".format(hex(address), hex(ret_addr)))
+
+# All this uninitialized memory stuff needs to be redone
+# Have to consider that some sections are zero init'd by loader
+# One case: SizeOfRawData is less than VirtualSize (https://onlyf8.com/pe-format, also the MS PE spec)
+# Maybe if IMAGE_SCN_CNT_UNINITIALIZED_DATA is set? Not seeing a source for that one.
 
 def uninitialized_memory_read(uc, access, address, size, value, env):
     # Was this address initialized with data from the binary?
