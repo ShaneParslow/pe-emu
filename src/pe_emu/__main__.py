@@ -1,8 +1,7 @@
 import sys
 
-from pefile import *
-from capstone import *
-from unicorn import *
+from pefile import PE
+from unicorn import UC_MODE_32, UC_MODE_64
 
 from . import Emu
 from . import util

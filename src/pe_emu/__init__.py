@@ -2,7 +2,8 @@ import unicorn
 from unicorn.x86_const import *
 from unicorn.unicorn_const import *
 
-from capstone import *
+from capstone import Cs, CS_ARCH_X86, CS_MODE_32, CS_MODE_64
+from capstone.x86_const import *
 
 from . import pe_util
 from . import hooks
@@ -19,12 +20,23 @@ class Emu:
         u = self.uni
         
         u.hook_add(UC_HOOK_MEM_INVALID, hooks.mem_invalid, user_data=self)
-        # This MUST be before hook_trace to make sure that it is not run immediately after hook_trace while still on the same instruction
-        # Ideally it is the first hook
-        u.hook_add(UC_HOOK_CODE, hooks.trace_next, user_data=self)
+
+        # Get the address of a taken jump for tracing purposes
         self.trace_next_instr = False
+        u.hook_add(UC_HOOK_CODE, hooks.trace_next, user_data=self)
+
+        # Get capstones thoughts on the current instruction
+        u.hook_add(UC_HOOK_CODE, hooks.pre_analysis, user_data=self)
+
+        # Print interesting instructions
         u.hook_add(UC_HOOK_CODE, hooks.interesting, user_data=self)
+        
+        # This hook requires extra details from capstone for instr group info
+        self.cs.detail = True
+        # Trace all control flow instructions
         u.hook_add(UC_HOOK_CODE, hooks.trace, user_data=self)
+
+        # Shouldn't be needed anymore?
         u.hook_add(UC_HOOK_CODE, hooks.ret, user_data=self)
 
         u.hook_add(UC_HOOK_MEM_READ, hooks.uninitialized_memory_read, user_data=self)

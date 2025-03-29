@@ -1,5 +1,4 @@
-from unicorn import *
-from unicorn.x86_const import *
+from capstone import CS_GRP_CALL, CS_GRP_JUMP, CS_GRP_RET
 
 from . import pe_util
 from . import util
