@@ -16,11 +16,15 @@ env.load(PE(sys.argv[1]))
 entry = env.pe.OPTIONAL_HEADER.ImageBase + env.pe.OPTIONAL_HEADER.AddressOfEntryPoint
 print("Starting emulation at {}".format(hex(entry)))
 try:
-    env.uni.emu_start(entry, 0xffffffffff)
+    # Docs say timeout is ms but it's actually us
+    ret = env.uni.emu_start(entry, 0xffffffffff, timeout=10000000)
 except UcError as e:
-    print("========================================================")
+    print("\n========================================================")
     print("ERROR: %s" % e)
-    util.print_context(env)
-    # TODO: reassemble to PE or elf coredump
-    util.dump_all(env)
-    
+
+print("\n========================================================")
+util.print_context(env)
+print("========================================================")
+
+# TODO: reassemble to PE or elf coredump
+util.dump_all(env)
