@@ -30,6 +30,7 @@ def trace_next(uc, address, size, env):
         print(hex(address))
 
 # TODO: capstone
+# TODO: msrs
 def interesting(uc, address, size, env):
     interesting = [(b'\x0f\x31', 'rdstc'),
                    (b'\x0f\xa2', 'cpuid')]

@@ -49,7 +49,7 @@ def dump_memory(uc, start, size, filename):
 def dump_stack(env):
     rsp = env.uni.reg_read(env.SP)
     stack_high = env.stack_low_addr + env.stack_size
-    print("Dumping stack to 'dumps/stack.bin', starting at RSP={} and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
+    print("Dumping stack to 'dumps/stack.bin', starting at RSP ({}) and going to top of stack ({})".format(hex(rsp), hex(stack_high)))
     dump_memory(env.uni, rsp, stack_high - rsp, "./dumps/stack.bin")
 
 # TODO: give a sane name to unnamed sections
@@ -58,7 +58,7 @@ def dump_segment(uc, sec, image_base):
     sec_name = sec.Name.decode('utf-8').strip('\x00')
     file_name = sec_name.strip('.') + ".bin"
     abs_sec_addr = image_base + sec.VirtualAddress
-    print("Dumping section {} to 'dumps/{}'".format(sec_name, file_name))
+    #print("Dumping section {} to 'dumps/{}'".format(sec_name, file_name))
     dump_memory(uc, abs_sec_addr, sec.Misc_VirtualSize, "./dumps/" + file_name)
 
 def dump_all_segments(env):
@@ -66,11 +66,27 @@ def dump_all_segments(env):
     for sec in pe.sections:
         dump_segment(env.uni, sec, pe.OPTIONAL_HEADER.ImageBase)
 
+def diff_segments(env):
+    pe = env.pe
+    for sec in pe.sections:
+        start = pe.OPTIONAL_HEADER.ImageBase + sec.VirtualAddress
+        size = sec.Misc_VirtualSize
+        image_base = pe.OPTIONAL_HEADER.ImageBase
+        working_mem = env.uni.mem_read(start, size)
+        pe_mem = pe.get_memory_mapped_image(ImageBase=image_base)
+        # pefile memory is relative to image base
+        orig_mem = pe_mem[start - image_base:start - image_base + size]
+
+        if working_mem != orig_mem:
+            name = sec.Name.decode('utf-8').strip('\x00')
+            print("INFO: Section {} differs".format(name))
+
 def dump_all(env):
     try:
         os.mkdir("dumps")
+        print("Created 'dumps' directory")
     except FileExistsError:
         pass
-    print("Created 'dumps' directory")
     dump_all_segments(env)
     dump_stack(env)
+    diff_segments(env)
